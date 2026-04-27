@@ -1,70 +1,553 @@
-<!DOCTYPE html>
-<html lang="id">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Tambah Pasien Baru</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-</head>
-<body class="bg-light">
-    <div class="container mt-5">
-        <div class="row justify-content-center">
-            <div class="col-md-8">
-                <div class="card shadow">
-                    <div class="card-header bg-success text-white">
-                        <h5 class="mb-0">Form Pendaftaran Pasien Baru</h5>
-                    </div>
-                    <div class="card-body">
-                        <form action="{{ route('patients.store') }}" method="POST">
-                            @csrf
-                            
-                            <div class="mb-3">
-                                <label class="form-label fw-bold">NIK KTP</label>
-                                <input type="text" name="nik" class="form-control @error('nik') is-invalid @enderror" value="{{ old('nik') }}" placeholder="Masukkan 16 digit NIK">
-                                @error('nik')
-                                    <div class="invalid-feedback">{{ $message }}</div>
-                                @enderror
-                            </div>
+{{-- resources/views/patients/create.blade.php --}}
+@extends('layouts.app')
 
-                            <div class="mb-3">
-                                <label class="form-label fw-bold">Nama Lengkap</label>
-                                <input type="text" name="nama_lengkap" class="form-control @error('nama_lengkap') is-invalid @enderror" value="{{ old('nama_lengkap') }}" placeholder="Nama sesuai KTP">
-                                @error('nama_lengkap')
-                                    <div class="invalid-feedback">{{ $message }}</div>
-                                @enderror
-                            </div>
+@section('title', 'Tambah Pasien Baru')
 
-                            <div class="mb-3">
-                                <label class="form-label fw-bold">Alamat Lengkap</label>
-                                <textarea name="alamat" class="form-control" rows="3" placeholder="Contoh: Jl. Sudirman No. 10...">{{ old('alamat') }}</textarea>
-                            </div>
+@push('styles')
+<style>
+    /* ── Root Variables ── */
+    :root {
+        --mediva-teal:    #0d9488;
+        --mediva-teal-lt: #ccfbf1;
+        --mediva-teal-dk: #0f766e;
+        --mediva-navy:    #0f172a;
+        --mediva-slate:   #475569;
+        --mediva-muted:   #94a3b8;
+        --mediva-border:  #e2e8f0;
+        --mediva-bg:      #f8fafc;
+        --mediva-card:    #ffffff;
+        --mediva-danger:  #dc2626;
+        --mediva-warn:    #d97706;
+        --mediva-success: #059669;
+        --radius-card:    .875rem;
+        --shadow-card:    0 1px 3px rgba(0,0,0,.08), 0 4px 16px rgba(0,0,0,.06);
+    }
 
-                            <div class="row">
-                                <div class="col-md-6 mb-3">
-                                    <label class="form-label fw-bold">Nomor Handphone (WA)</label>
-                                    <input type="text" name="no_hp" class="form-control @error('no_hp') is-invalid @enderror" value="{{ old('no_hp') }}" placeholder="0812xxxxxx">
-                                    @error('no_hp')
-                                        <div class="invalid-feedback">{{ $message }}</div>
-                                    @enderror
-                                </div>
-                                <div class="col-md-6 mb-3">
-                                    <label class="form-label fw-bold">Tanggal Lahir</label>
-                                    <input type="date" name="tanggal_lahir" class="form-control @error('tanggal_lahir') is-invalid @enderror" value="{{ old('tanggal_lahir') }}">
-                                    @error('tanggal_lahir')
-                                        <div class="invalid-feedback">{{ $message }}</div>
-                                    @enderror
-                                </div>
-                            </div>
+    body { background: var(--mediva-bg); }
 
-                            <div class="d-flex justify-content-between mt-4">
-                                <a href="{{ route('patients.index') }}" class="btn btn-secondary">Batal</a>
-                                <button type="submit" class="btn btn-success">Simpan Data Pasien</button>
-                            </div>
-                        </form>
-                    </div>
-                </div>
+    /* ── Page Header ── */
+    .page-header {
+        background: linear-gradient(135deg, var(--mediva-success) 0%, #047857 100%);
+        border-radius: var(--radius-card);
+        padding: 1.75rem 2rem;
+        color: #fff;
+        margin-bottom: 1.75rem;
+        box-shadow: 0 4px 20px rgba(5,150,105,.28);
+        position: relative;
+        overflow: hidden;
+    }
+    .page-header::before {
+        content: '';
+        position: absolute; top: -40px; right: -40px;
+        width: 200px; height: 200px;
+        background: rgba(255,255,255,.06); border-radius: 50%;
+    }
+    .page-header::after {
+        content: '';
+        position: absolute; bottom: -60px; right: 80px;
+        width: 140px; height: 140px;
+        background: rgba(255,255,255,.04); border-radius: 50%;
+    }
+    .page-title { font-size: 1.3rem; font-weight: 800; margin: 0; letter-spacing: -.02em; }
+    .page-sub   { font-size: .84rem; opacity: .82; margin-top: .25rem; margin-bottom: 0; }
+
+    /* Breadcrumb di header */
+    .breadcrumb-item a { color: rgba(255,255,255,.75); text-decoration: none; font-size: .82rem; }
+    .breadcrumb-item a:hover { color: #fff; }
+    .breadcrumb-item.active { color: rgba(255,255,255,.95); font-size: .82rem; }
+    .breadcrumb-item + .breadcrumb-item::before { color: rgba(255,255,255,.4); }
+
+    /* Avatar inisial besar di header */
+    .header-icon {
+        width: 3.5rem; height: 3.5rem; border-radius: .75rem;
+        background: rgba(255,255,255,.2); border: 2px solid rgba(255,255,255,.35);
+        display: flex; align-items: center; justify-content: center;
+        font-size: 1.4rem; color: #fff; flex-shrink: 0;
+        backdrop-filter: blur(4px);
+    }
+
+    /* ── Section Cards ── */
+    .section-card {
+        background: var(--mediva-card);
+        border: 1px solid var(--mediva-border);
+        border-radius: var(--radius-card);
+        box-shadow: var(--shadow-card);
+        margin-bottom: 1.5rem;
+        overflow: hidden;
+        transition: box-shadow .2s;
+    }
+    .section-card:focus-within {
+        box-shadow: 0 0 0 3px rgba(5,150,105,.15), var(--shadow-card);
+    }
+
+    .section-header {
+        display: flex; align-items: center; gap: .75rem;
+        padding: 1rem 1.5rem;
+        border-bottom: 1px solid var(--mediva-border);
+        background: #f8fafc;
+    }
+    .section-icon {
+        width: 2.25rem; height: 2.25rem; border-radius: .5rem;
+        display: flex; align-items: center; justify-content: center;
+        font-size: 1rem; flex-shrink: 0;
+    }
+    .icon-green { background: #dcfce7; color: var(--mediva-success); }
+    .icon-teal  { background: var(--mediva-teal-lt); color: var(--mediva-teal); }
+
+    .section-title    { font-size: .95rem; font-weight: 700; color: var(--mediva-navy); margin: 0; }
+    .section-subtitle { font-size: .76rem; color: var(--mediva-muted); margin: 0; }
+    .section-body { padding: 1.5rem; }
+
+    /* ── Form Controls ── */
+    .form-label {
+        font-size: .8rem; font-weight: 600;
+        color: var(--mediva-slate); text-transform: uppercase;
+        letter-spacing: .04em; margin-bottom: .35rem;
+    }
+    .form-label .req { color: var(--mediva-danger); margin-left: .2rem; }
+
+    .form-control, .form-select {
+        border: 1.5px solid var(--mediva-border);
+        border-radius: .5rem; font-size: .9rem;
+        padding: .55rem .85rem;
+        transition: border-color .18s, box-shadow .18s;
+        background: #fff;
+    }
+    .form-control:focus, .form-select:focus {
+        border-color: var(--mediva-success);
+        box-shadow: 0 0 0 3px rgba(5,150,105,.12);
+        outline: none;
+    }
+    .form-control.is-invalid, .form-select.is-invalid {
+        border-color: var(--mediva-danger);
+    }
+    .form-control.is-invalid:focus {
+        box-shadow: 0 0 0 3px rgba(220,38,38,.12);
+    }
+    .invalid-feedback { font-size: .78rem; color: var(--mediva-danger); }
+    .form-hint        { font-size: .76rem; color: var(--mediva-muted); margin-top: .25rem; }
+
+    /* Textarea */
+    .form-control[rows] { resize: vertical; min-height: 5rem; }
+
+    /* Input group unit */
+    .input-unit {
+        background: #f1f5f9; border: 1.5px solid var(--mediva-border);
+        border-left: none; border-radius: 0 .5rem .5rem 0;
+        padding: .55rem .8rem; font-size: .8rem;
+        color: var(--mediva-muted); white-space: nowrap;
+    }
+    .input-group .form-control { border-radius: .5rem 0 0 .5rem; }
+
+
+    /* ── Progress Steps ── */
+    .progress-steps { display: flex; gap: 0; margin-bottom: 1.75rem; }
+    .step {
+        flex: 1; display: flex; flex-direction: column;
+        align-items: center; position: relative;
+    }
+    .step:not(:last-child)::after {
+        content: ''; position: absolute;
+        top: 1rem; left: 50%; width: 100%; height: 2px;
+        background: var(--mediva-border); z-index: 0;
+    }
+    .step-dot {
+        width: 2rem; height: 2rem; border-radius: 50%;
+        border: 2px solid var(--mediva-border);
+        background: #fff; z-index: 1;
+        display: flex; align-items: center; justify-content: center;
+        font-size: .75rem; font-weight: 700; color: var(--mediva-muted);
+        transition: all .2s;
+    }
+    .step.active .step-dot {
+        background: var(--mediva-success); border-color: var(--mediva-success); color: #fff;
+        box-shadow: 0 0 0 4px rgba(5,150,105,.2);
+    }
+    .step-label { font-size: .7rem; color: var(--mediva-muted); margin-top: .4rem; text-align: center; }
+    .step.active .step-label { color: var(--mediva-success); font-weight: 700; }
+
+    /* ── Submit Bar ── */
+    .submit-bar {
+        background: var(--mediva-card);
+        border: 1px solid var(--mediva-border);
+        border-radius: var(--radius-card);
+        padding: 1.25rem 1.5rem;
+        display: flex; align-items: center; justify-content: space-between;
+        flex-wrap: wrap; gap: 1rem;
+        box-shadow: var(--shadow-card);
+    }
+    .btn-simpan {
+        background: var(--mediva-success); color: #fff;
+        border: none; border-radius: .5rem;
+        padding: .65rem 2rem; font-size: .95rem; font-weight: 700;
+        transition: background .18s, transform .1s, box-shadow .18s;
+        display: inline-flex; align-items: center; gap: .5rem;
+    }
+    .btn-simpan:hover {
+        background: #047857; color: #fff;
+        box-shadow: 0 4px 12px rgba(5,150,105,.35);
+        transform: translateY(-1px);
+    }
+    .btn-simpan:active { transform: translateY(0); }
+
+    .btn-batal {
+        color: var(--mediva-slate); background: transparent;
+        border: 1.5px solid var(--mediva-border);
+        border-radius: .5rem; padding: .65rem 1.5rem;
+        font-size: .9rem; font-weight: 600;
+        transition: all .15s; text-decoration: none;
+        display: inline-flex; align-items: center; gap: .5rem;
+    }
+    .btn-batal:hover { background: #f1f5f9; color: var(--mediva-navy); }
+
+    /* ── Golongan darah pills ── */
+    .gd-group { display: flex; gap: .5rem; flex-wrap: wrap; }
+    .gd-group input[type="radio"] { display: none; }
+    .gd-group label {
+        cursor: pointer; padding: .4rem .9rem; border-radius: 2rem;
+        border: 1.5px solid var(--mediva-border);
+        font-size: .85rem; font-weight: 700; color: var(--mediva-slate);
+        transition: all .15s; user-select: none; min-width: 2.8rem;
+        text-align: center;
+    }
+    .gd-group input[type="radio"]:checked + label {
+        background: #7c3aed; border-color: #7c3aed; color: #fff;
+    }
+</style>
+@endpush
+
+@section('content')
+<div class="container-fluid py-4" style="max-width: 820px;">
+
+    {{-- ── Alert Errors ── --}}
+    @if ($errors->any())
+    <div class="alert alert-danger d-flex align-items-start gap-2 mb-4 rounded-3 border-0 shadow-sm" role="alert">
+        <i class="bi bi-exclamation-triangle-fill fs-5 flex-shrink-0 mt-1"></i>
+        <div>
+            <strong>Terdapat kesalahan pada form:</strong>
+            <ul class="mb-0 mt-1 ps-3">
+                @foreach ($errors->all() as $error)
+                    <li style="font-size:.88rem;">{{ $error }}</li>
+                @endforeach
+            </ul>
+        </div>
+    </div>
+    @endif
+
+    {{-- ── Page Header ── --}}
+    <div class="page-header">
+        <nav aria-label="breadcrumb" class="mb-3">
+            <ol class="breadcrumb mb-0">
+                <li class="breadcrumb-item">
+                    <a href="{{ route('patients.index') }}">
+                        <i class="bi bi-people me-1"></i>Pasien
+                    </a>
+                </li>
+                <li class="breadcrumb-item active">Tambah Baru</li>
+            </ol>
+        </nav>
+
+        <div class="d-flex align-items-center gap-3">
+            <div class="header-icon"><i class="bi bi-person-plus-fill"></i></div>
+            <div>
+                <p class="page-title">
+                    <i class="bi bi-person-plus-fill me-2"></i>Form Pendaftaran Pasien Baru
+                </p>
+                <p class="page-sub">
+                    Isi semua data dengan lengkap dan benar sesuai KTP
+                </p>
             </div>
         </div>
     </div>
-</body>
-</html>
+
+
+    {{-- ── Progress Steps ── --}}
+    <div class="progress-steps">
+        <div class="step active">
+            <div class="step-dot">1</div>
+            <span class="step-label">Data<br>Identitas</span>
+        </div>
+        <div class="step active">
+            <div class="step-dot">2</div>
+            <span class="step-label">Data<br>Kesehatan</span>
+        </div>
+        <div class="step active">
+            <div class="step-dot">3</div>
+            <span class="step-label">Simpan</span>
+        </div>
+    </div>
+
+    {{-- ══════════════════════════════════════════════════════ --}}
+    {{-- FORM UTAMA                                            --}}
+    {{-- ══════════════════════════════════════════════════════ --}}
+    <form action="{{ route('patients.store') }}" method="POST" id="createForm" novalidate>
+        @csrf
+        {{-- CATATAN: Jangan pakai @method('PUT') di sini karena ini form create, bukan edit! --}}
+
+        {{-- ┌───────────────────────────────────────────────┐ --}}
+        {{-- │  BAGIAN 1 · DATA IDENTITAS                    │ --}}
+        {{-- └───────────────────────────────────────────────┘ --}}
+        <div class="section-card">
+            <div class="section-header">
+                <div class="section-icon icon-green">
+                    <i class="bi bi-person-vcard-fill"></i>
+                </div>
+                <div>
+                    <p class="section-title">Bagian 1 — Data Identitas</p>
+                    <p class="section-subtitle">Informasi kependudukan dan kontak pasien</p>
+                </div>
+            </div>
+            <div class="section-body">
+                <div class="row g-3">
+
+                    {{-- NIK --}}
+                    <div class="col-md-6">
+                        <label for="nik" class="form-label">
+                            NIK KTP <span class="req">*</span>
+                        </label>
+                        <input type="text"
+                               id="nik"
+                               name="nik"
+                               class="form-control @error('nik') is-invalid @enderror"
+                               value="{{ old('nik') }}"
+                               placeholder="Masukkan 16 digit NIK"
+                               maxlength="16"
+                               required>
+                        @error('nik')
+                            <div class="invalid-feedback">{{ $message }}</div>
+                        @enderror
+                        <p class="form-hint" id="nik-hint">16 digit sesuai KTP</p>
+                    </div>
+
+                    {{-- Tanggal Lahir --}}
+                    <div class="col-md-6">
+                        <label for="tanggal_lahir" class="form-label">
+                            Tanggal Lahir <span class="req">*</span>
+                        </label>
+                        <input type="date"
+                               id="tanggal_lahir"
+                               name="tanggal_lahir"
+                               class="form-control @error('tanggal_lahir') is-invalid @enderror"
+                               value="{{ old('tanggal_lahir') }}"
+                               max="{{ date('Y-m-d') }}"
+                               required>
+                        @error('tanggal_lahir')
+                            <div class="invalid-feedback">{{ $message }}</div>
+                        @enderror
+                        <p class="form-hint" id="umur-preview"></p>
+                    </div>
+
+                    {{-- Nama Lengkap --}}
+                    <div class="col-12">
+                        <label for="nama_lengkap" class="form-label">
+                            Nama Lengkap <span class="req">*</span>
+                        </label>
+                        <input type="text"
+                               id="nama_lengkap"
+                               name="nama_lengkap"
+                               class="form-control @error('nama_lengkap') is-invalid @enderror"
+                               value="{{ old('nama_lengkap') }}"
+                               placeholder="Nama sesuai KTP"
+                               required>
+                        @error('nama_lengkap')
+                            <div class="invalid-feedback">{{ $message }}</div>
+                        @enderror
+                    </div>
+
+                    {{-- Alamat --}}
+                    <div class="col-12">
+                        <label for="alamat" class="form-label">Alamat Lengkap</label>
+                        <textarea id="alamat"
+                                  name="alamat"
+                                  class="form-control"
+                                  rows="2"
+                                  placeholder="Contoh: Jl. Sudirman No. 10, Kelurahan…">{{ old('alamat') }}</textarea>
+                    </div>
+
+                    {{-- No HP --}}
+                    <div class="col-md-6">
+                        <label for="no_hp" class="form-label">Nomor Handphone (WA)</label>
+                        <div class="input-group">
+                            <input type="text"
+                                   id="no_hp"
+                                   name="no_hp"
+                                   class="form-control @error('no_hp') is-invalid @enderror"
+                                   value="{{ old('no_hp') }}"
+                                   placeholder="0812xxxxxx">
+                            <span class="input-unit"><i class="bi bi-whatsapp"></i></span>
+                        </div>
+                        @error('no_hp')
+                            <div class="invalid-feedback d-block">{{ $message }}</div>
+                        @enderror
+                    </div>
+
+                </div>{{-- /row --}}
+            </div>{{-- /section-body --}}
+        </div>{{-- /section-card --}}
+
+
+        {{-- ┌───────────────────────────────────────────────┐ --}}
+        {{-- │  BAGIAN 2 · DATA KESEHATAN DASAR              │ --}}
+        {{-- └───────────────────────────────────────────────┘ --}}
+        <div class="section-card">
+            <div class="section-header">
+                <div class="section-icon icon-teal">
+                    <i class="bi bi-heart-pulse-fill"></i>
+                </div>
+                <div>
+                    <p class="section-title">Bagian 2 — Data Kesehatan Dasar</p>
+                    <p class="section-subtitle">Antropometri, riwayat penyakit, dan alergi</p>
+                </div>
+            </div>
+            <div class="section-body">
+                <div class="row g-3">
+
+                    {{-- Golongan Darah --}}
+                    <div class="col-12">
+                        <label class="form-label d-block">Golongan Darah</label>
+                        <div class="gd-group">
+                            @foreach(['A', 'B', 'AB', 'O'] as $gd)
+                            <div>
+                                <input type="radio"
+                                       id="gd_{{ $gd }}"
+                                       name="golongan_darah"
+                                       value="{{ $gd }}"
+                                       {{ old('golongan_darah') == $gd ? 'checked' : '' }}>
+                                <label for="gd_{{ $gd }}">{{ $gd }}</label>
+                            </div>
+                            @endforeach
+                            {{-- Opsi kosong / tidak tahu --}}
+                            <div>
+                                <input type="radio"
+                                       id="gd_none"
+                                       name="golongan_darah"
+                                       value=""
+                                       {{ old('golongan_darah') == '' ? 'checked' : '' }}>
+                                <label for="gd_none" style="font-weight:500;">Tidak Tahu</label>
+                            </div>
+                        </div>
+                        @error('golongan_darah')
+                            <p class="form-hint" style="color:var(--mediva-danger);">{{ $message }}</p>
+                        @enderror
+                    </div>
+
+                    {{-- Tinggi Badan --}}
+                    <div class="col-md-6">
+                        <label for="tinggi_badan" class="form-label">Tinggi Badan</label>
+                        <div class="input-group">
+                            <input type="number"
+                                   id="tinggi_badan"
+                                   name="tinggi_badan"
+                                   class="form-control @error('tinggi_badan') is-invalid @enderror"
+                                   value="{{ old('tinggi_badan') }}"
+                                   placeholder="155"
+                                   min="50" max="250">
+                            <span class="input-unit">cm</span>
+                        </div>
+                        @error('tinggi_badan')
+                            <div class="invalid-feedback d-block">{{ $message }}</div>
+                        @enderror
+                    </div>
+
+                    {{-- Riwayat Penyakit --}}
+                    <div class="col-12">
+                        <label for="riwayat_penyakit" class="form-label">Riwayat Penyakit</label>
+                        <textarea id="riwayat_penyakit"
+                                  name="riwayat_penyakit"
+                                  class="form-control"
+                                  rows="2"
+                                  placeholder="Contoh: Diabetes, Hipertensi, Asma…">{{ old('riwayat_penyakit') }}</textarea>
+                        <p class="form-hint">Kosongkan jika tidak ada riwayat penyakit.</p>
+                    </div>
+
+                    {{-- Alergi --}}
+                    <div class="col-12">
+                        <label for="alergi" class="form-label">Alergi</label>
+                        <textarea id="alergi"
+                                  name="alergi"
+                                  class="form-control"
+                                  rows="2"
+                                  placeholder="Contoh: Alergi udang, penisilin…">{{ old('alergi') }}</textarea>
+                        <p class="form-hint">Kosongkan jika tidak ada alergi.</p>
+                    </div>
+
+                </div>{{-- /row --}}
+            </div>{{-- /section-body --}}
+        </div>{{-- /section-card --}}
+
+
+        {{-- ── Submit Bar ── --}}
+        <div class="submit-bar">
+            <a href="{{ route('patients.index') }}" class="btn-batal">
+                <i class="bi bi-arrow-left"></i> Batal
+            </a>
+            <div class="d-flex align-items-center gap-3">
+                <p class="mb-0" style="font-size:.78rem;color:var(--mediva-muted);">
+                    <span style="color:var(--mediva-danger);">*</span> Wajib diisi
+                </p>
+                <button type="submit" class="btn-simpan" id="btnSimpan">
+                    <i class="bi bi-person-check-fill"></i> Simpan Data Pasien
+                </button>
+            </div>
+        </div>
+
+    </form>
+
+</div>
+@endsection
+
+@push('scripts')
+<script>
+(function () {
+    'use strict';
+
+    // ── Loading state tombol submit ─────────────────────────
+    document.getElementById('createForm').addEventListener('submit', function () {
+        const btn = document.getElementById('btnSimpan');
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Menyimpan…';
+    });
+
+    // ── NIK: hanya angka, max 16 digit + counter hint ───────
+    document.getElementById('nik').addEventListener('input', function () {
+        this.value       = this.value.replace(/\D/g, '').slice(0, 16);
+        const hint       = document.getElementById('nik-hint');
+        const len        = this.value.length;
+        if (len > 0 && len < 16) {
+            hint.textContent = `Sisa ${16 - len} digit lagi`;
+            hint.style.color = 'var(--mediva-warn)';
+        } else if (len === 16) {
+            hint.textContent = '✓ NIK lengkap 16 digit';
+            hint.style.color = 'var(--mediva-success)';
+        } else {
+            hint.textContent = '16 digit sesuai KTP';
+            hint.style.color = 'var(--mediva-muted)';
+        }
+    });
+
+    // ── Tanggal Lahir: hitung & tampilkan umur ──────────────
+    document.getElementById('tanggal_lahir').addEventListener('change', function () {
+        const preview = document.getElementById('umur-preview');
+        if (!this.value) { preview.textContent = ''; return; }
+        const lahir = new Date(this.value);
+        const today = new Date();
+        let umur    = today.getFullYear() - lahir.getFullYear();
+        const bulan = today.getMonth() - lahir.getMonth();
+        if (bulan < 0 || (bulan === 0 && today.getDate() < lahir.getDate())) umur--;
+        if (umur < 0 || umur > 120) {
+            preview.textContent = 'Tanggal tidak valid';
+            preview.style.color = 'var(--mediva-danger)';
+        } else {
+            preview.textContent = `Usia: ${umur} tahun`;
+            preview.style.color = 'var(--mediva-success)';
+        }
+    });
+
+    // ── No HP: hanya angka dan + ────────────────────────────
+    document.getElementById('no_hp').addEventListener('input', function () {
+        this.value = this.value.replace(/[^\d+]/g, '');
+    });
+
+})();
+</script>
+@endpush
